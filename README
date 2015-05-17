@@ -3,7 +3,6 @@ Yoon Kim
 yhk255@nyu.edu
 
 Only has the skip-gram architecture with negative sampling. See https://code.google.com/p/word2vec/ for more details.
-Relevant paper can be found at http://arxiv.org/abs/1301.3781
 
 Note: Implementation is considerably slower than the word2vec toolkit and the gensim implementation
 
