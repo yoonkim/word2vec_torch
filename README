@@ -4,7 +4,7 @@ yhk255@nyu.edu
 
 Only has the skip-gram architecture with negative sampling. See https://code.google.com/p/word2vec/ for more details.
 
-Note: This is considerably slower than the word2vec toolkit and gensim, due to the implementation not being parallelized.
+Note: This is considerably slower than the word2vec toolkit and gensim implementations.
 
 Input file is a text file where each line represents one sentence (see corpus.txt for an example)
 
