@@ -13,8 +13,8 @@ Arguments are mostly self-explanatory (see main.lua for default arguments)
 -corpus : text file with the corpus
 -window : max window size
 -dim : dimensionality of word embeddings
--alpha : exponent to smooth out unigram distribution (no need to change this)
--table_size : table size to sample unigrams. if you have plenty of RAM, bring this up to 10^8
+-alpha : exponent to smooth out unigram distribution 
+-table_size : unigram table size. if you have plenty of RAM, bring this up to 10^8
 -neg_samples : number of negative samples for each valid word-context pair
 -minfreq : minimum frequency to be included in the vocab
 -lr : starting learning rate
