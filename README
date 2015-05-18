@@ -8,18 +8,18 @@ Note: This is considerably slower than the word2vec toolkit and gensim implement
 
 Input file is a text file where each line represents one sentence (see corpus.txt for an example)
 
-Arguments are mostly self-explantory (see main.lua for default arguments)
+Arguments are mostly self-explanatory (see main.lua for default arguments)
 
--corpus 
--window
--dim
--alpha
--table_size
--neg_samples
--minfreq
--lr
--min_lr
--epochs
+-corpus : text file with the corpus
+-window : max window size
+-dim : dimensionality of word embeddings
+-alpha : exponent to smooth out unigram distribution (no need to change this)
+-table_size : table size to sample unigrams. if you have plenty of RAM, bring this up to 10^8
+-neg_samples : number of negative samples for each valid word-context pair
+-minfreq : minimum frequency to be included in the vocab
+-lr : starting learning rate
+-min_lr : minimum learning rate--lr will linearly decay to this value
+-epochs : number of epochs to run
 
 For example:
 
