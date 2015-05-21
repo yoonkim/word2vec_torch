@@ -9,6 +9,8 @@ local Word2Vec = torch.class("Word2Vec")
 
 function Word2Vec:__init(config)
     self.tensortype = torch.getdefaulttensortype()
+    self.gpu = config.gpu -- 1 if train on gpu, otherwise cpu
+    self.stream = config.stream -- 1 if stream from hard drive, 0 otherwise
     self.neg_samples = config.neg_samples
     self.minfreq = config.minfreq
     self.dim = config.dim
@@ -27,7 +29,7 @@ function Word2Vec:__init(config)
     self.total_count = 0
 end
 
--- change to cuda
+-- move to cuda
 function Word2Vec:cuda()
     require("cunn")
     self.word = self.word:cuda()
@@ -77,7 +79,7 @@ function Word2Vec:build_vocab(corpus)
     self.w2v.modules[1]:add(self.word_vecs)
     self.w2v:add(nn.MM(false, true)) -- dot prod and sigmoid to get probabilities
     self.w2v:add(nn.Sigmoid())
-    self.decay = (self.min_lr-self.lr)/self.total_count
+    self.decay = (self.min_lr-self.lr)/(self.total_count*self.window)
 end
 
 -- Build a table of unigram frequencies from which to obtain negative samples
@@ -127,8 +129,9 @@ function Word2Vec:sample_contexts(context)
     end
 end
 
--- Train on sentences
-function Word2Vec:train_model(corpus)
+-- Train on sentences that are streamed from the hard drive
+-- Check train_mem function to train from memory (after pre-loading data into tensor)
+function Word2Vec:train_stream(corpus)
     print("Training...")
     local start = sys.clock()
     local c = 0
@@ -147,14 +150,14 @@ function Word2Vec:train_model(corpus)
 			if context_idx ~= nil then -- valid context
   		            self:sample_contexts(context_idx) -- update pos/neg contexts
 			    self:train_pair(self.word, self.contexts) -- train word context pair
+			    c = c + 1
+			    self.lr = math.max(self.min_lr, self.lr + self.decay) 
+			    if c % 100000 ==0 then
+			        print(string.format("%d words trained in %.2f seconds. Learning rate: %.4f", c, sys.clock() - start, self.lr))
+			    end
 			end
 		    end
-	       end
-	       c = c + 1
-	       self.lr = math.max(self.min_lr, self.lr + self.decay) 
-	       if c % 100000 ==0 then
-	           print(string.format("%d words trained in %.2f seconds. Learning rate: %.4f", c, sys.clock() - start, self.lr))
-	       end		
+                end		
 	    end
 	end
     end
@@ -173,7 +176,7 @@ end
 -- w can be a string such as "king" or a vector for ("king" - "queen" + "man")
 function Word2Vec:get_sim_words(w, k)
     if self.word_vecs_norm == nil then
-        self.word_vecs_norm = self:normalize(self.word_vecs.weight)
+        self.word_vecs_norm = self:normalize(self.word_vecs.weight:double())
     end
     if type(w) == "string" then
         if self.word2index[w] == nil then
@@ -215,4 +218,67 @@ function Word2Vec:split(input, sep)
         t[i] = str; i = i + 1
     end
     return t
+end
+
+-- pre-load data as a torch tensor instead of streaming it. this requires a lot of memory, 
+-- so if the corpus is huge you should partition into smaller sets
+function Word2Vec:preload_data(corpus)
+    print("Preloading training corpus into tensors (Warning: this takes a lot of memory)")
+    local start = sys.clock()
+    local c = 0
+    f = io.open(corpus, "r")
+    self.train_words = {}; self.train_contexts = {}
+    for line in f:lines() do
+        sentence = self:split(line)
+        for i, word in ipairs(sentence) do
+	    word_idx = self.word2index[word]
+	    if word_idx ~= nil then -- word exists in vocab
+    	        local reduced_window = torch.random(self.window) -- pick random window size
+		self.word[1] = word_idx -- update current word
+                for j = i - reduced_window, i + reduced_window do -- loop through contexts
+	            local context = sentence[j]
+		    if context ~= nil and j ~= i then -- possible context
+		        context_idx = self.word2index[context]
+			if context_idx ~= nil then -- valid context
+			    c = c + 1
+  		            self:sample_contexts(context_idx) -- update pos/neg contexts
+			    if self.gpu==1 then
+			        self.train_words[c] = self.word:clone():cuda()
+			        self.train_contexts[c] = self.contexts:clone():cuda()
+			    else
+				self.train_words[c] = self.word:clone()
+				self.train_contexts[c] = self.contexts:clone()
+			    end
+			end
+		    end
+	       end	      
+	    end
+	end
+    end
+    print(string.format("%d word-contexts processed in %.2f seconds", c, sys.clock() - start))
+end
+
+-- train from memory. this is needed to speed up GPU training
+function Word2Vec:train_mem()
+    local start = sys.clock()
+    for i = 1, #self.train_words do
+        self:train_pair(self.train_words[i], self.train_contexts[i])
+	self.lr = math.max(self.min_lr, self.lr + self.decay)
+	if i%100000==0 then
+            print(string.format("%d words trained in %.2f seconds. Learning rate: %.4f", i, sys.clock() - start, self.lr))
+	end
+    end    
+end
+
+-- train the model using config parameters
+function Word2Vec:train_model(corpus)
+    if self.gpu==1 then
+        self:cuda()
+    end
+    if self.stream==1 then
+        self:train_stream(corpus)
+    else
+        self:preload_data(corpus)
+	self:train_mem()
+    end
 end

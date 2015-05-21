@@ -20,9 +20,15 @@ Arguments are mostly self-explanatory (see main.lua for default arguments)
 -lr : starting learning rate
 -min_lr : minimum learning rate--lr will linearly decay to this value
 -epochs : number of epochs to run
+-stream : whether to stream text data from HD or store in memory (1 = stream, 0 = not)
+-gpu : whether to use gpu (1 = use gpu, 0 = not)
 
 For example:
 
-th main.lua -corpus corpus.txt -window 3 -dim 100 -minfreq 10
+CPU:
+th main.lua -corpus corpus.txt -window 3 -dim 100 -minfreq 10 -stream 1 -gpu 0 
+
+GPU:
+th main.lua -corpus corpus.txt -window 3 -dim 100 -minfreq 10 -stream 0 -gpu 1
 
 
