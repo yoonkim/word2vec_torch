@@ -32,6 +32,8 @@ end
 -- move to cuda
 function Word2Vec:cuda()
     require("cunn")
+    require("cutorch")
+    cutorch.setDevice(1)
     self.word = self.word:cuda()
     self.contexts = self.contexts:cuda()
     self.labels = self.labels:cuda()
